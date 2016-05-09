@@ -31,6 +31,7 @@ class SubmanDaemon(dbus.service.Object):
     DBUS_NAME = "com.redhat.Subscriptions1.SubmanDaemon1"
     DBUS_INTERFACE = "com.redhat.Subscriptions1.SubmanDaemon1"
     DBUS_PATH = "/com/redhat/Subscriptions1/SubmanDaemon1"
+    _default_service_classes = []
 
     def __init__(self, conn=None, bus=None, object_path=DBUS_PATH, service_classes=None):
         print "Created SubmanDaemon"
@@ -41,7 +42,7 @@ class SubmanDaemon(dbus.service.Object):
         self.conn = conn
         self.object_path = object_path
 
-        self.service_classes = service_classes or []
+        self.service_classes = service_classes or self.__class__._default_service_classes
         self.services = {}
         super(SubmanDaemon, self).__init__(object_path=object_path, conn=conn, bus_name=bus_name)
 
@@ -51,7 +52,8 @@ class SubmanDaemon(dbus.service.Object):
     def get_service_by_name(self, service_name, sender=None):
         """ Returns the object path to a given service """
         service_name = dbus_utils.dbus_to_python(service_name, str)
-        service_instance = _get_service_by_name(service_name, create=True)
+        service_instance = self._get_service_by_name(service_name, create=True)
+        return service_instance
 
     def _get_service_by_name(self, service_name, create=False):
         """ Returns an instance of an object """
@@ -69,7 +71,9 @@ class SubmanDaemon(dbus.service.Object):
     def _find_service_class_for_name(self, service_name):
         logger.debug('Finding class that matches service name "%s"', service_name)
         for service in self.service_classes:
+            logger.debug(service_name)
             if service.DBUS_NAME == service_name:
+                logger.debug("Made it")
                 return service
         raise decorators.Subscriptions1DBusException('No class found that matches "%s"', service_name)
 
@@ -212,6 +216,10 @@ class RegisterService(dbus.service.Object):
         elif (options.get('force') and options.get('consumerid')):
             return _("Error: Can not force registration while attempting to recover registration with consumerid. Please use --force without --consumerid to re-register or use the clean command and try again without --force.")
         return None
+
+
+class PrivateRegisterService(SubmanDaemon):
+    _default_service_classes = [ConfigService, RegisterService]
 
 
 if __name__ == '__main__':
