@@ -1,4 +1,4 @@
-from rhsmlib.dbus.common import decorators
+from rhsmlib.dbus.common import decorators, dbus_utils
 
 import dbus.service
 
@@ -21,7 +21,7 @@ class SubmanDaemon(dbus.service.Object):
         print "Created SubmanDaemon"
         bus_name = None
         if bus is not None:
-            bus_name = dbus.service.BusName(DBUS_NAME, bus)
+            bus_name = dbus.service.BusName(self.__class__.DBUS_NAME, bus)
         self.bus = bus
         self.conn = conn
         self.object_path = object_path
@@ -47,7 +47,7 @@ class SubmanDaemon(dbus.service.Object):
             logger.debug('No instance of service name "%s" available', service_name)
             if create:
                 self.services[service_name] = self._create_service_instance(service_name)
-                return self.services[service_name]
+                service = self.services[service_name]
             else:
                 raise decorators.Subscriptions1DBusException("No instance available")
         return service
