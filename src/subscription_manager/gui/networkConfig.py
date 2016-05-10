@@ -128,12 +128,12 @@ class NetworkConfigDialog(widgets.SubmanBaseWidget):
             self.proxyEntry.set_text(proxy)
             try:
                 proxy_hostname, proxy_port = proxy.split(':')
-                self.cfg.set("server", "proxy_hostname", proxy_hostname)
-                self.cfg.set("server", "proxy_port", proxy_port)
+                self.cfg.set("server", "proxy_hostname", proxy_hostname or "")
+                self.cfg.set("server", "proxy_port", proxy_port or "")
             except ValueError:
-                # no port? just write out the hostname and assume default
-                self.cfg.set("server", "proxy_hostname", proxy)
-                self.cfg.set("server", "proxy_port", rhsm.config.DEFAULT_PROXY_PORT)
+                # no port? use the default instead of storing
+                self.cfg.set("server", "proxy_hostname", proxy or "")
+                self.cfg.set("server", "proxy_port", "")
         else:
             # delete config options if we disable it in the ui
             self.cfg.set("server", "proxy_hostname", "")
@@ -227,8 +227,9 @@ class NetworkConfigDialog(widgets.SubmanBaseWidget):
     def clean_proxy_entry(self, widget=None, dummy=None):
         proxy_url = self.proxyEntry.get_text()
         proxy_host, proxy_port = self.parse_proxy_entry(proxy_url)
-        cleaned_proxy_url = "%s:%s" % (proxy_host, proxy_port)
-        self.proxyEntry.set_text(cleaned_proxy_url)
+        if proxy_host:
+            cleaned_proxy_url = "%s:%s" % (proxy_host, proxy_port)
+            self.proxyEntry.set_text(cleaned_proxy_url)
         return (proxy_host, proxy_port)
 
     def parse_proxy_entry(self, proxy_url):
