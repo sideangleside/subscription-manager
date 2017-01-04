@@ -40,6 +40,13 @@ def get_value(json_dict, path):
 
     return current
 
+def colorize(msg):
+    color = False
+    if color:
+        return "\033[94m%s\033[0m" % msg
+    else:
+        return msg
+
 
 class ZipExtractAll(ZipFile):
     """extend ZipFile with a safer extractall
@@ -242,14 +249,57 @@ class CatManifestCommand(RCTManifestCommand):
             to_print.append((_("Account"), get_value(data, "pool.accountNumber")))
             virt_limit = self._get_product_attribute("virt_limit", data)
             to_print.append((_("Virt Limit"), virt_limit))
+            facts_to_print = []
             require_virt_who = False
+            sub_fact_data = ""
             if virt_limit:
                 require_virt_who = True
+                facts_to_print.append((_("VIRT_LIMIT"), "This subscription supports up to " + colorize(virt_limit) +" guests"))
+            else:
+                facts_to_print.append((_("VIRT_LIMIT"), "This subscription does not require virt-who"))
             to_print.append((_("Requires Virt-who"), require_virt_who))
 
             entitlement_file = os.path.join("export", "entitlements", "%s.json" % data["id"])
             to_print.append((_("Entitlement File"), entitlement_file))
-            #Get the certificate to get the version
+
+            ### Sockets
+            sockets = self._get_product_attribute("sockets", data)
+            if sockets:
+                to_print.append((_("Sockets"), sockets))
+                facts_to_print.append((_("SOCKETS"), "This subscription supports systems with up to " + colorize(sockets) +" sockets"))
+            else:
+                to_print.append((_("Sockets"), "Not Applicable"))
+                sockets = "0"
+            stacked = get_value(data, "pool.stacked")
+            to_print.append((_("Stackable"), stacked))
+            if stacked:
+                facts_to_print.append((_("STACKABLE"), "This subscription is" + colorize("stackable") + "to support hosts with > " + colorize(sockets) + "sockets"))
+            else:
+                facts_to_print.append((_("STACKABLE"), "This subscription is not " + colorize("stackable")+ " "))
+
+            ### Cores
+            cores = self._get_product_attribute("cores", data)
+            if cores:
+                to_print.append((_("Cores"), cores))
+                facts_to_print.append((_("CORES"), "This subscription supports systems with up to " + colorize(cores) + " cores"))
+            else:
+                to_print.append((_("Cores"), "Not Applicable"))
+            ### Inst Multiplier
+            instance_multiplier = self._get_product_attribute("instance_multiplier", data)
+            if instance_multiplier:
+                to_print.append((_("Instance Multipler"), instance_multiplier))
+            else:
+                to_print.append((_("Instance Multipler"), "Not Applicable"))
+            ### Cloud Access
+            cloud_access_enabled = self._get_product_attribute("cloud_access_enabled", data)
+            if cloud_access_enabled:
+                to_print.append((_("Cloud Access"), cloud_access_enabled.capitalize()))
+                facts_to_print.append((_("CLOUD ACCESS"), "This subscription is eligible for the " + colorize("Cloud Access Program") + ""))
+            else:
+                to_print.append((_("Cloud Access"), "Not Applicable"))
+
+
+###         #Get the certificate to get the version
             serial = data["certificates"][0]["serial"]["id"]
 
             cert_file = os.path.join("export", "entitlement_certificates", "%s.pem" % serial)
@@ -264,23 +314,21 @@ class CatManifestCommand(RCTManifestCommand):
             to_print.append((_("Certificate Version"), cert.version))
 
             self._print_section(_("Subscription:"), to_print, 1, False)
-
-            # Get the provided Products
             to_print = [(int(pp["productId"]), pp["productName"]) for pp in data["pool"]["providedProducts"]]
 
-            self._print_section(_("Provided Products:"), sorted(to_print), 2, False)
-
-            # Get the derived provided Products (if available)
-            if "derivedProvidedProducts" in data["pool"]:
-                to_print = [(int(pp["productId"]), pp["productName"]) for pp in data["pool"]["derivedProvidedProducts"]]
-                self._print_section(_("Derived Products:"), sorted(to_print), 2, False)
-
+            if data["pool"]["derivedProvidedProducts"]:
+              self._print_section(_("Provided Products [Hosts]:"), sorted(to_print), 2, False)
+              to_print = [(int(pp["productId"]), pp["productName"]) for pp in data["pool"]["derivedProvidedProducts"]]
+              self._print_section(_("Provided Products [Guests]:"), sorted(to_print), 2, False)
+              facts_to_print.append((_("PRODUCTS"), "This subscription provides \033[94mdifferent\033[0m content for hosts & guests"))
+            else:
+              self._print_section(_("Provided Products:"), sorted(to_print), 2, False)
+            self._print_section(_("Facts:"), facts_to_print, 2, False)
             # Get the Content Sets
             if not self.options.no_content:
                 to_print = [[item.url] for item in cert.content]
                 self._print_section(_("Content Sets:"), sorted(to_print), 2, True)
-            else:  # bz#1369577: print a blank line to separate subscriptions when --no-content in use
-                print ""
+
 
     def _do_command(self):
         """
